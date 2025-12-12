@@ -1,87 +1,79 @@
-# Welcome to React Router!
+# Berry – Agentic Trading Assistant
 
-A modern, production-ready template for building full-stack React applications using React Router.
+[![Status](https://img.shields.io/badge/status-active-brightgreen)](#) [![Award](https://img.shields.io/badge/FinTech_Showcase-1st_Place-blueviolet)](#) [![Stack](https://img.shields.io/badge/stack-Python_%7C_Flask_%7C_React_%7C_Vite-0a84ff)](#) [![License](https://img.shields.io/badge/license-MIT-lightgrey)](#)
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/remix-run/react-router-templates/tree/main/default)
+Berry mimics the research and execution workflow of a real life trading firm to deliver buy/hold/sell decisions, risk commentary, and actionable investment plans. It pairs a Python/Flask backend with a React + TypeScript + Vite frontend so you can explore analysis, generate portfolios, and monitor market signals in one place. Berry won **1st place** in our semester-long FinTech project showcase.
 
-## Features
+## What Berry does
+- **Agentic research loop:** Multiple analyst personas (market, media, news, fundamentals) debate and synthesize a trade decision.
+- **Actionable reports:** Final output includes decision, rationale, risk assessment, and a simple investment plan.
+- **Portfolio tools:** Generate diversified portfolios, fetch historical performance, and launch allocations through Alpaca.
+- **Market + news data:** Trending headlines, top gainers/losers, and ticker lookups to ground decisions in real-time data.
+- **Chat-style analysis:** Send a ticker or a plain question and receive structured guidance.
 
-- 🚀 Server-side rendering
-- ⚡️ Hot Module Replacement (HMR)
-- 📦 Asset bundling and optimization
-- 🔄 Data loading and mutations
-- 🔒 TypeScript by default
-- 🎉 TailwindCSS for styling
-- 📖 [React Router docs](https://reactrouter.com/)
+## Repo layout
+- `backend/` – Flask API, agent workflows, data connectors, and portfolio utilities.
+- `frontend/` – React/TypeScript app (Vite) for dashboards, chat, search, and portfolio views.
 
-## Getting Started
-
-### Installation
-
-Install the dependencies:
-
+## Quick start
+1) Clone and open the project:
 ```bash
+git clone <repo-url>
+cd AgenticTradingAssistant
+```
+
+2) Backend (Python 3.11+):
+```bash
+cd backend
+cp .env.example .env  # create your env file (see below)
+uv run app.py         # starts Flask on :5000
+# This project uses UV as a package manager
+# Run "pip install uv" to install UV
+```
+
+3) Frontend (Node 18+):
+```bash
+cd frontend
 npm install
+npm run dev           # starts Vite on :5173
 ```
 
-### Development
+Visit `http://localhost:5173` and the app will proxy requests to the backend at `http://127.0.0.1:5000`.
 
-Start the development server with HMR:
-
-```bash
-npm run dev
+## Environment variables
+Create `backend/.env` with your keys:
 ```
-
-Your application will be available at `http://localhost:5173`.
-
-## Building for Production
-
-Create a production build:
-
-```bash
-npm run build
+GEMINI_API_KEY=...
+OPENAI_API_KEY=...
+MARKETAUX_API_KEY=...
+MASSIVE_API_KEY=...
+TIINGO_API_KEY=...
+ALPHA_VANTAGE_API_KEY=...
+ALPACA_API_KEY=...
+ALPACA_API_SECRET=...
+USE_OPENAI_MODEL=true|false
 ```
+If you switch to only OpenAI or only Gemini, set `USE_OPENAI_MODEL` accordingly.
 
-## Deployment
+## Key endpoints (backend)
+- `POST /analyze` – Body `{ "message": "Analyze AAPL" }`; returns the debate-driven trade report.
+- `GET /portfolio` – Generates a portfolio; accepts `diversification`, `max_risk`, and `sectors` query params.
+- `GET /portfolio/current` – Historical portfolio values for charting.
+- `GET /portfolio/launch` – Pushes the current portfolio to Alpaca with a starting balance.
+- `GET /news/trending` – Trending market headlines.
+- `GET /market/top-movers` – Top gainers/losers and most active equities.
+- `GET /search/:ticker` – Ticker reference lookup.
 
-### Docker Deployment
+## Frontend highlights
+- Dashboard with market movers, brokerage snapshot, and portfolio performance.
+- Chat experience for asking Berry to research tickers and return structured decisions.
+- Portfolio page to generate, review, and launch allocations.
+- Education and article views for curated learning content.
 
-To build and run using Docker:
+## Roadmap ideas
+- Parallelize the agentic workflow to speed up deep analysis on stocks
+- More granular risk knobs (beta, drawdown limits, sector caps).
+- Automatize Berry to run on websockets to get real time analysis when offline
 
-```bash
-docker build -t my-app .
-
-# Run the container
-docker run -p 3000:3000 my-app
-```
-
-The containerized application can be deployed to any platform that supports Docker, including:
-
-- AWS ECS
-- Google Cloud Run
-- Azure Container Apps
-- Digital Ocean App Platform
-- Fly.io
-- Railway
-
-### DIY Deployment
-
-If you're familiar with deploying Node applications, the built-in app server is production-ready.
-
-Make sure to deploy the output of `npm run build`
-
-```
-├── package.json
-├── package-lock.json (or pnpm-lock.yaml, or bun.lockb)
-├── build/
-│   ├── client/    # Static assets
-│   └── server/    # Server-side code
-```
-
-## Styling
-
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever CSS framework you prefer.
-
----
-
-Built with ❤️ using React Router.
+## Contributing
+Feel free to open issues or PRs for bugs, UI polish, or new agent strategies. When contributing, keep secrets out of version control and favor config via environment variables.
