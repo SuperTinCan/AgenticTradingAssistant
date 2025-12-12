@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -10,7 +10,15 @@ import {
   Legend,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
-import DateButton from "./dateButton";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
@@ -25,16 +33,38 @@ interface PortfolioLineChartProps {
   style?: React.CSSProperties;
 }
 
+const MOCK_POINTS: Point[] = [
+  { date: "2024-01-01", portfolio_value: 0 },
+  { date: "2025-03-01", portfolio_value: 100 },
+  { date: "2026-06-01", portfolio_value: 300 },
+  { date: "2027-09-01", portfolio_value: 700},
+  { date: "2028-12-01", portfolio_value: 2000 },
+];
+
 export default function PortfolioLineChart({ className, style }: PortfolioLineChartProps) {
   const [dataPoints, setDataPoints] = useState<Point[]>([]);
   const [startDate, setStartDate] = useState<string>("2024-11-01");
   const [selectedYears, setSelectedYears] = useState<number>(1);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const fetchPortfolio = useCallback((date: string) => {
+    setIsLoading(true);
     fetch(`http://127.0.0.1:5000/portfolio/current?startdate=${date}`)
       .then((res) => res.json())
-      .then((json) => setDataPoints(json))
-      .catch((err) => console.error(err));
+      .then((json) => {
+        if (Array.isArray(json)) {
+          console.log("Fetched portfolio/current data:", json);
+          setDataPoints(json);
+        } else {
+          console.error("Invalid portfolio/current response:", json);
+          setDataPoints(MOCK_POINTS);
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+        setDataPoints(MOCK_POINTS);
+      })
+      .finally(() => setIsLoading(false));
   }, []);
 
   useEffect(() => {
@@ -60,6 +90,7 @@ export default function PortfolioLineChart({ className, style }: PortfolioLineCh
   const formattedLabel = values.length > 0 ? `${lastValue.toFixed(2)}%` : "Loading...";
   const isPositive = lastValue >= firstValue;
   const lineColor = isPositive ? "#26a69a" : "#e53935";
+  const dateOptions = useMemo(() => [1, 2, 5, 10], []);
 
   const data = {
     labels,
@@ -106,51 +137,68 @@ export default function PortfolioLineChart({ className, style }: PortfolioLineCh
   }
 
   return (
-    // 1. Outer container takes 100% of parent size
-    <div 
-      className={className}
-      style={{ 
-        width: "100%", 
-        height: "100%", 
-        display: "flex", 
-        flexDirection: "column", 
-        ...style 
-      }}
+    <Card
+      className={cn(
+        "h-full min-h-[360px] w-full border-border/70 bg-card shadow-sm",
+        className
+      )}
+      style={style}
     >
-      {/* Header: Flex-shrink 0 ensures it doesn't get squished */}
-      <div style={{ flexShrink: 0, textAlign: "center", marginBottom: "10px" }}>
-        <label
-          style={{
-            color: isPositive ? "green" : "red",
-            fontWeight: "bold",
-            fontSize: "1.2rem",
-          }}
-        >
-          {selectedYears}-Year ({formattedLabel})
-        </label>
-      </div>
+      <CardHeader className="flex flex-col gap-2 border-b border-border/70 pb-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base font-semibold pr-2">
+            Portfolio performance 
+          </CardTitle>
+          <span
+            className={cn(
+              "rounded-full px-3 py-1 text-xs font-semibold",
+              isPositive ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
+            )}
+          >
+            {selectedYears}-Year ({formattedLabel})
+          </span>
+        </div>
+        <CardDescription className="text-sm text-muted-foreground">
+          Last updated values from your backend service.
+        </CardDescription>
+      </CardHeader>
 
-      {/* Chart Container: Flex-grow 1 takes all available remaining space */}
-      <div style={{ flexGrow: 1, position: "relative", minHeight: 0 }}>
-        <Line options={options} data={data} />
-      </div>
+      <CardContent className="flex h-full flex-col gap-4 p-6">
+        <div className="relative min-h-[240px] flex-1">
+          <Line options={options} data={data} />
+          {isLoading && (
+            <div className="bg-background/70 absolute inset-0 flex items-center justify-center rounded-lg text-sm text-muted-foreground backdrop-blur">
+              Refreshing data…
+            </div>
+          )}
+        </div>
 
-      {/* Footer: Flex-shrink 0 ensures buttons sit at the bottom */}
-      <div
-        style={{
-          flexShrink: 0,
-          display: "flex",
-          flexDirection: "row",
-          gap: "10px",
-          marginTop: "10px",
-          justifyContent: "center", // Centers buttons
-        }}
-      >
-        <DateButton years={1} onApply={handleDateApply} />
-        <DateButton years={2} onApply={handleDateApply} />
-        <DateButton years={5} onApply={handleDateApply} />
-        <DateButton years={10} onApply={handleDateApply} />
-      </div>
-    </div>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {dateOptions.map((years) => {
+            const today = new Date();
+            const pastDate = new Date();
+            pastDate.setFullYear(today.getFullYear() - years);
+            const formattedPastDate = pastDate.toISOString().split("T")[0];
+
+            const isActive = selectedYears === years;
+
+            return (
+              <Button
+                key={years}
+                variant={isActive ? "default" : "outline"}
+                size="sm"
+                className={cn(
+                  "rounded-full px-4",
+                  isActive && "shadow-sm"
+                )}
+                onClick={() => handleDateApply(formattedPastDate, years)}
+              >
+                {years} Year{years > 1 ? "s" : ""}
+              </Button>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { Treemap, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import SettingsButton from "./SettingsButton";
-
-interface PortfolioTreemapProps {
-  showChart?: boolean;
-}
+import SettingsButton from "@/components/settingsButton";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 interface PortfolioItem {
   symbol: string;
@@ -18,10 +21,22 @@ interface NormalizedData {
   description: string;
 }
 
-const PortfolioTreemap: React.FC<PortfolioTreemapProps> = ({ showChart = false }) => {
+const MOCK_PORTFOLIO: PortfolioItem[] = [
+  { symbol: "AAPL", weight: 20, description: "Apple Inc." },
+  { symbol: "MSFT", weight: 18, description: "Microsoft Corp." },
+  { symbol: "GOOG", weight: 15, description: "Alphabet Inc." },
+  { symbol: "AMZN", weight: 12, description: "Amazon.com Inc." },
+  { symbol: "NVDA", weight: 10, description: "NVIDIA Corp." },
+  { symbol: "JPM", weight: 8, description: "JPMorgan Chase" },
+  { symbol: "UNH", weight: 7, description: "UnitedHealth Group" },
+  { symbol: "XOM", weight: 5, description: "Exxon Mobil Corp." },
+  { symbol: "HD", weight: 5, description: "Home Depot Inc." },
+];
+
+const PortfolioTreemap: React.FC = () => {
   const [data, setData] = useState(() => {
     const saved = sessionStorage.getItem("portfolioData");
-    return saved ? JSON.parse(saved) : [];
+    return saved ? JSON.parse(saved) : MOCK_PORTFOLIO;
   });
   const [diversification, setDiversification] = useState<number>(5);
   const [maxRisk, setMaxRisk] = useState<number>(50);
@@ -42,14 +57,26 @@ const PortfolioTreemap: React.FC<PortfolioTreemapProps> = ({ showChart = false }
   const fetchPortfolio = async (div: number, risk: number, sectors: string[]) => {
     try {
       const res = await fetch(
-        `http://127.0.0.1:5000/portfolio?diversification=${div}&max_risk=${risk}&sectors=${sectors.join(",")}`
+         `http://127.0.0.1:5000/portfolio?diversification=${div}&max_risk=${risk}&sectors=${sectors.join(",")}`
       );
       const portfolio: PortfolioItem[] = await res.json();
-      setData(portfolio);
+      console.log("Params:", { div, risk, sectors });
+      console.log("Fetched portfolio:", portfolio);
+      if (Array.isArray(portfolio) && portfolio.length > 0) {
+        setData(portfolio);
+        sessionStorage.setItem("portfolioData", JSON.stringify(portfolio));
+      } else {
+        setData(MOCK_PORTFOLIO);
+        sessionStorage.setItem("portfolioData", JSON.stringify(MOCK_PORTFOLIO));
+      }
 
-      sessionStorage.setItem("portfolioData", JSON.stringify(portfolio));
+      window.dispatchEvent(new Event("portfolioUpdated"));
     } catch (err) {
       console.error("Error fetching portfolio:", err);
+      setData(MOCK_PORTFOLIO);
+      sessionStorage.setItem("portfolioData", JSON.stringify(MOCK_PORTFOLIO));
+
+      window.dispatchEvent(new Event("portfolioUpdated"));
     }
   };
 
@@ -60,6 +87,7 @@ const PortfolioTreemap: React.FC<PortfolioTreemapProps> = ({ showChart = false }
   }, []);
 
   const handleApply = (newDiver: number, newRisk: number, sectors: string[]) => {
+    console.log("Applying new settings:", newDiver, newRisk, sectors);
     setDiversification(newDiver);
     setMaxRisk(newRisk);
     setSectors(sectors);
@@ -68,16 +96,22 @@ const PortfolioTreemap: React.FC<PortfolioTreemapProps> = ({ showChart = false }
 
   if (!Array.isArray(data) || data.length === 0) {
     return (
-      <div style={{ padding: 16 }}>
-        <div style={{ position: "relative", width: "100%", height: "10%" }}>
+      <Card className="h-full w-full border-border/70 bg-card shadow-sm">
+        <CardHeader className="flex flex-row items-start justify-between gap-4 border-b border-border/70 pb-4">
+          <div className="space-y-1">
+            <CardTitle className="text-base font-semibold">Allocation treemap</CardTitle>
+            <CardDescription>Waiting for portfolio data…</CardDescription>
+          </div>
           <SettingsButton
             onApply={handleApply}
             defaultDiver={diversification}
             defaultRisk={maxRisk}
           />
-        </div>
-        No portfolio data available
-      </div>
+        </CardHeader>
+        <CardContent className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
+          No portfolio data available
+        </CardContent>
+      </Card>
     );
   }
 
@@ -105,56 +139,59 @@ const PortfolioTreemap: React.FC<PortfolioTreemapProps> = ({ showChart = false }
   };
 
   return (
-    <div style={{ width: "100%", height: "100%", border: "none", margin: 0, padding: 0 }}>
-      <div style={{ position: "relative", width: "100%", height: "10%" }}>
+    <Card className="h-full w-full border-border/70 bg-card shadow-sm">
+      <CardHeader className="flex flex-row items-start justify-between gap-4 border-b border-border/70 pb-4">
+        <div className="space-y-1">
+          <CardTitle className="text-base font-semibold">Allocation treemap</CardTitle>
+          <CardDescription>
+            Visualizes holding weights with your current preferences.
+          </CardDescription>
+        </div>
         <SettingsButton
           onApply={handleApply}
           defaultDiver={diversification}
           defaultRisk={maxRisk}
         />
-      </div>
+      </CardHeader>
 
-      <ResponsiveContainer width="100%" height="90%">
-        <Treemap
-          data={normalizedData}
-          dataKey="size"
-          stroke="#fff"
-          ratio={4 / 3}
-          isAnimationActive={false}
-        >
-          {normalizedData.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={getColor(index)} />
-          ))}
-          <Tooltip
-            wrapperStyle={{ maxWidth: "500px" }}
-            content={({ payload }) => {
-              if (payload && payload.length && payload[0].payload) {
-                const { name, size, description } = payload[0].payload as NormalizedData;
-                return (
-                  <div
-                    style={{
-                      background: "rgba(0,0,0,0.75)",
-                      color: "#fff",
-                      padding: "5px 10px",
-                      borderRadius: 5,
-                      wordWrap: "break-word",
-                      whiteSpace: "normal",
-                    }}
-                  >
-                    <strong>{name}</strong>
-                    <br />
-                    Weight: {Number(size).toFixed(2)}%
-                    <br />
-                    <div style={{ fontSize: "0.7em" }}>{description}</div>
-                  </div>
-                );
-              }
-              return null;
-            }}
-          />
-        </Treemap>
-      </ResponsiveContainer>
-    </div>
+      <CardContent className="h-full px-4 pb-6 pt-4">
+        <div className="h-[420px] w-full min-h-[360px] rounded-xl border border-border/50 bg-muted/20 p-2">
+          <ResponsiveContainer width="100%" height="100%">
+            <Treemap
+              data={normalizedData}
+              dataKey="size"
+              stroke="hsl(var(--border))"
+              ratio={4 / 3}
+              isAnimationActive={false}
+            >
+              {normalizedData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={getColor(index)} />
+              ))}
+              <Tooltip
+                wrapperStyle={{ maxWidth: "460px" }}
+                content={({ payload }) => {
+                  if (payload && payload.length && payload[0].payload) {
+                    const { name, size, description } = payload[0].payload as NormalizedData;
+                    return (
+                      <div className="rounded-lg border border-border/60 bg-popover px-3 py-2 text-xs shadow-md">
+                        <div className="font-semibold text-foreground">{name}</div>
+                        <div className="text-muted-foreground">Weight: {Number(size).toFixed(2)}%</div>
+                        {description && (
+                          <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                            {description}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+            </Treemap>
+          </ResponsiveContainer>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 
